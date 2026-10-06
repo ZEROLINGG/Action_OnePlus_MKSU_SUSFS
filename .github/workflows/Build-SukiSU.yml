@@ -111,6 +111,11 @@ on:
         description: "是否启用添加更多的ZRAM算法？"
         required: true
         default: false
+      SKIP_SUSFS:
+        type: boolean
+        description: "跳过SUSFS补丁(5.10+android16等无对应分支时用)"
+        required: true
+        default: false
 
 jobs:
   build:
@@ -196,6 +201,10 @@ jobs:
       - name: Apply Patches SukiSU Ultra
         run: |
           cd kernel_workspace
+          if [ "${{ github.event.inputs.SKIP_SUSFS }}" = "true" ]; then
+            echo "SKIP_SUSFS=true, 跳过SUSFS补丁(纯SukiSU)"
+            git clone https://github.com/ShirkNeko/SukiSU_patch.git
+          else
           SUSFS_VER="${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}"
           # 5.10内核无android16分支, 按内核基线取android12-5.10补丁
           if [ "${{ github.event.inputs.KERNEL_VERSION }}" = "5.10" ] && [ "${{ github.event.inputs.ANDROID_VERSION }}" = "android16" ]; then
@@ -208,6 +217,7 @@ jobs:
           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${SUSFS_VER}.patch ./common/
           cp ../susfs4ksu/kernel_patches/fs/* ./common/fs/
           cp ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
+          fi
 
           if [ "${{ github.event.inputs.ZRAM }}" = "true" ]; then
           echo "正在给内核打zram补丁"
@@ -218,7 +228,11 @@ jobs:
           fi
 
           cd ./common
-          patch -p1 < 50_add_susfs_in_gki-${SUSFS_VER}.patch || true
+          if [ "${{ github.event.inputs.SKIP_SUSFS }}" != "true" ]; then
+            patch -p1 < 50_add_susfs_in_gki-${SUSFS_VER}.patch || true
+          else
+            echo "跳过SUSFS patch"
+          fi
           echo "完成"
 
       - name: Apply Hide Stuff Patches
@@ -247,8 +261,11 @@ jobs:
 
           # SukiSU Ultra config
           echo "CONFIG_KSU=y" >> "$CONFIG_FILE"
-          echo "CONFIG_KPM=y" >> "$CONFIG_FILE"
+          if [ "${{ github.event.inputs.KPM }}" = "true" ]; then
+            echo "CONFIG_KPM=y" >> "$CONFIG_FILE"
+          fi
 
+          if [ "${{ github.event.inputs.SKIP_SUSFS }}" != "true" ]; then
           # SUSFS config
           echo "CONFIG_KSU_SUSFS=y" >> "$CONFIG_FILE"
           echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> "$CONFIG_FILE"
@@ -265,6 +282,9 @@ jobs:
           echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> "$CONFIG_FILE"
           echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> "$CONFIG_FILE"
           echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> "$CONFIG_FILE"
+          else
+            echo "SKIP_SUSFS, 不写SUSFS CONFIG"
+          fi
 
           # Remove check_defconfig
           sed -i 's/check_defconfig//' ./common/build.config.gki
