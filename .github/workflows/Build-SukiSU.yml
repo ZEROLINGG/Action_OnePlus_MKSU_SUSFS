@@ -196,11 +196,16 @@ jobs:
       - name: Apply Patches SukiSU Ultra
         run: |
           cd kernel_workspace
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}
+          SUSFS_VER="${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}"
+          # 5.10内核无android16分支, 按内核基线取android12-5.10补丁
+          if [ "${{ github.event.inputs.KERNEL_VERSION }}" = "5.10" ] && [ "${{ github.event.inputs.ANDROID_VERSION }}" = "android16" ]; then
+            SUSFS_VER="android12-5.10"
+          fi
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-${SUSFS_VER}
           git clone https://github.com/ShirkNeko/SukiSU_patch.git
           cd kernel_platform
-          echo "正在给内核打susfs补丁"
-          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}.patch ./common/
+          echo "正在给内核打susfs补丁 gki-${SUSFS_VER}"
+          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${SUSFS_VER}.patch ./common/
           cp ../susfs4ksu/kernel_patches/fs/* ./common/fs/
           cp ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
 
@@ -213,7 +218,7 @@ jobs:
           fi
 
           cd ./common
-          patch -p1 < 50_add_susfs_in_gki-${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}.patch || true
+          patch -p1 < 50_add_susfs_in_gki-${SUSFS_VER}.patch || true
           echo "完成"
 
       - name: Apply Hide Stuff Patches
