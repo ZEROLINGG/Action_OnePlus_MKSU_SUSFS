@@ -205,27 +205,28 @@ jobs:
             echo "SKIP_SUSFS=true, 跳过SUSFS补丁(纯SukiSU)"
             git clone https://github.com/ShirkNeko/SukiSU_patch.git
           else
-          SUSFS_VER="${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}"
-          # 5.10内核无android16分支, 按内核基线取android12-5.10补丁
-          if [ "${{ github.event.inputs.KERNEL_VERSION }}" = "5.10" ] && [ "${{ github.event.inputs.ANDROID_VERSION }}" = "android16" ]; then
-            SUSFS_VER="android12-5.10"
+            SUSFS_VER="${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}"
+            # 5.10内核无android16分支, 按内核基线取android12-5.10补丁
+            if [ "${{ github.event.inputs.KERNEL_VERSION }}" = "5.10" ] && [ "${{ github.event.inputs.ANDROID_VERSION }}" = "android16" ]; then
+              SUSFS_VER="android12-5.10"
+            fi
+            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-${SUSFS_VER}
+            git clone https://github.com/ShirkNeko/SukiSU_patch.git
           fi
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-${SUSFS_VER}
-          git clone https://github.com/ShirkNeko/SukiSU_patch.git
           cd kernel_platform
           if [ "${{ github.event.inputs.SKIP_SUSFS }}" != "true" ]; then
-          echo "正在给内核打susfs补丁 gki-${SUSFS_VER}"
-          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${SUSFS_VER}.patch ./common/
-          cp ../susfs4ksu/kernel_patches/fs/* ./common/fs/
-          cp ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
+            echo "正在给内核打susfs补丁 gki-${SUSFS_VER}"
+            cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${SUSFS_VER}.patch ./common/
+            cp ../susfs4ksu/kernel_patches/fs/* ./common/fs/
+            cp ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
           fi
 
           if [ "${{ github.event.inputs.ZRAM }}" = "true" ]; then
-          echo "正在给内核打zram补丁"
-          cp -r ../SukiSU_patch/other/zram/lz4k/include/linux/* ./common/include/linux
-          cp -r ../SukiSU_patch/other/zram/lz4k/lib/* ./common/lib
-          cp -r ../SukiSU_patch/other/zram/lz4k/crypto/* ./common/crypto
-          cp -r ../SukiSU_patch/other/zram/lz4k_oplus ./common/lib/
+            echo "正在给内核打zram补丁"
+            cp -r ../SukiSU_patch/other/zram/lz4k/include/linux/* ./common/include/linux
+            cp -r ../SukiSU_patch/other/zram/lz4k/lib/* ./common/lib
+            cp -r ../SukiSU_patch/other/zram/lz4k/crypto/* ./common/crypto
+            cp -r ../SukiSU_patch/other/zram/lz4k_oplus ./common/lib/
           fi
 
           cd ./common
@@ -426,7 +427,7 @@ jobs:
 
       # 下载 SUSFS 模块（CI）
       - name: Download Latest SUSFS Module from CI
-        if: ${{ github.event.inputs.SUSFS_CI == 'true' }}
+        if: ${{ github.event.inputs.SUSFS_CI == 'true' && github.event.inputs.SKIP_SUSFS != 'true' }}
         run: |
           LATEST_RUN_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/repos/sidex15/susfs4ksu-module/actions/runs?status=success" | \
@@ -445,7 +446,7 @@ jobs:
 
       # 下载 SUSFS 模块（Release）
       - name: Download Latest SUSFS Module from Release
-        if: ${{ github.event.inputs.SUSFS_CI == 'false' }}
+        if: ${{ github.event.inputs.SUSFS_CI == 'false' && github.event.inputs.SKIP_SUSFS != 'true' }}
         run: |
           wget https://github.com/sidex15/ksu_module_susfs/releases/latest/download/ksu_module_susfs_1.5.2+.zip
           cp ksu_module_susfs_1.5.2+.zip ./AnyKernel3/
